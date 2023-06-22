@@ -1,6 +1,8 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { DragControls } from 'three/addons/controls/DragControls.js';
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { GUI } from 'dat.gui'
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(
@@ -32,18 +34,49 @@ const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
 const line = new THREE.Line(lineGeometry, lineMaterial);
 scene.add(line);
 
+
+// load GLTFs
 const loader = new GLTFLoader();
 
 loader.load(
-  "./assets/scene.gltf ",
+  "assets/scene.gltf ",
   function (gltf) {
+    gltf.scene.position.set(0, 0.4, 0);
     scene.add(gltf.scene);
+  },
+  function (xhr) {
+    console.log((xhr.loaded / xhr.total * 100) + '% loaded')
   },
   undefined,
   function (error) {
     console.error(error);
   }
 );
+
+loader.load(
+  "assets/chess/king.glb",
+  function (gltf) {
+    const model = gltf.scene;
+
+    // Set the desired position of the model
+    model.position.set(0, 0, 0);
+    model.scale.set(0.03, 0.03, 0.03)
+
+    scene.add(model);
+
+    // Drag control
+    const dragControls = new DragControls([model], camera, renderer.domElement);
+
+    dragControls.addEventListener('dragstart', function(event) {
+      console.log(1);
+    });
+  },
+  undefined,
+  function (error) {
+    console.error(error);
+  }
+);
+
 
 // Lights
 const ambientLight = new THREE.AmbientLight(0x202020);
@@ -54,8 +87,8 @@ pointLight.position.set(0, 10, 0);
 scene.add(pointLight);
 
 // helpers 
-const size = 10;
-const divisions = 10;
+const size = 30;
+const divisions = 50;
 
 const gridHelper = new THREE.GridHelper(size, divisions);
 scene.add(gridHelper)
@@ -70,9 +103,26 @@ scene.add(pointLightHelper)
 camera.position.set(0, 6, 15)
 
 // Orbitcontrols
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.update();
-controls.autoRotate = true;
+// const controls = new OrbitControls(camera, renderer.domElement);
+// controls.update();
+// controls.enablePan = false;
+
+// GUI
+const gui = new GUI()
+const cubeFolder = gui.addFolder('cube')
+cubeFolder.add(cube.rotation, 'x', 0, Math.PI * 2)
+cubeFolder.add(cube.rotation, 'y', 0, Math.PI * 2)
+cubeFolder.add(cube.rotation, 'z', 0, Math.PI * 2)
+cubeFolder.open()
+const cameraFolder = gui.addFolder('camera')
+cameraFolder.add(camera.position, 'z', 0, 50).name('Zoom');
+cameraFolder.add(camera.rotation, 'x', 0, 6.28, 0.01).name('Rotation X'); 
+cameraFolder.add(camera.rotation, 'y', 0, 6.28, 0.01).name('Rotation Y'); 
+cameraFolder.add(camera.rotation, 'z', 0, 6.28, 0.01).name('Rotation Z');
+cameraFolder.open()
+const pointLightFolder = gui.addFolder('pointlight')
+pointLightFolder.add(pointLight, 'intensity', 0, 1)
+
 
 function animate() {
   requestAnimationFrame(animate);
@@ -80,9 +130,21 @@ function animate() {
   cube.rotation.x += 0.01;
   cube.rotation.y += 0.01;
 
-  controls.update();
+  // controls.update();
 
   renderer.render(scene, camera);
 }
 
 animate();
+
+// making canvas responsive 
+window.addEventListener('resize', () => {
+  // update camera aspect
+  camera.aspect = window.innerWidth / window.innerHeight
+  camera.updateProjectionMatrix()
+
+  // update renderer
+  renderer.setSize(window.innerWidth, window.innerHeight)
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+  renderer.render(scene, camera)
+})
