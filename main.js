@@ -39,7 +39,7 @@ scene.add(line);
 const loader = new GLTFLoader();
 
 loader.load(
-  "assets/scene.gltf ",
+  "/assets/scene.gltf ",
   function (gltf) {
     gltf.scene.position.set(0, 0.4, 0);
     scene.add(gltf.scene);
@@ -54,7 +54,7 @@ loader.load(
 );
 
 loader.load(
-  "assets/chess/king.glb",
+  "/assets/chess/king.glb",
   function (gltf) {
     const model = gltf.scene;
 
