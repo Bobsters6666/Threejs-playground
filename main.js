@@ -8,6 +8,8 @@ import whitePieces from "./data/WhitePieces";
 import blackPieces from "./data/BlackPieces";
 
 const canvas = document.getElementById('canvas')
+const customLoader = document.querySelector('.loader')
+const loadingPercentage = document.querySelector('.percentage')
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(
@@ -40,9 +42,25 @@ scene.add(cube);
 // const line = new THREE.Line(lineGeometry, lineMaterial);
 // scene.add(line);
 
+// Loader
+const loadingManager = new THREE.LoadingManager();
+
+loadingManager.onProgress = function (url, itemsLoaded, itemsTotal) {
+  const progress = Math.round((itemsLoaded / itemsTotal) * 100);
+  loadingPercentage.textContent = progress;
+}
+
+loadingManager.onLoad = function() {
+  setTimeout(() => {
+    canvas.style.display = 'block'
+    customLoader.style.display = 'none'
+    gui.open()
+  }, 1000)
+  
+}
 
 // load GLTFs
-const loader = new GLTFLoader();
+const loader = new GLTFLoader(loadingManager);
 
 loader.load(
   "/assets/scene.gltf ",
@@ -161,7 +179,7 @@ cameraFolder.add(camera.position, 'z', -50, 50 * 2, 0.01).name('Position Z');
 cameraFolder.open()
 const pointLightFolder = gui.addFolder('pointlight')
 pointLightFolder.add(pointLight, 'intensity', 0, 1)
-
+gui.close()
 
 // customising background
 // scene.background.color = 0x000fff
