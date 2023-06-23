@@ -19,6 +19,8 @@ const camera = new THREE.PerspectiveCamera(
   1000
 );
 
+const draggablePieces = []
+
 const renderer = new THREE.WebGLRenderer();
 renderer.setSize(window.innerWidth, window.innerHeight);
 canvas.appendChild(renderer.domElement);
@@ -29,18 +31,6 @@ const cube = new THREE.Mesh(cubeGeometry, cubeMaterial);
 cube.position.set(0, 3, -40)
 cube.scale.set(4, 4, 4)
 scene.add(cube);
-
-//create a blue LineBasic material
-// const lineMaterial = new THREE.LineBasicMaterial({ color: 0x0000ff });
-// const points = [];
-// points.push(new THREE.Vector3(-10, 0, 0));
-// points.push(new THREE.Vector3(0, 10, 0));
-// points.push(new THREE.Vector3(10, 0, 0));
-
-// const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
-
-// const line = new THREE.Line(lineGeometry, lineMaterial);
-// scene.add(line);
 
 // Loader
 const loadingManager = new THREE.LoadingManager();
@@ -56,8 +46,32 @@ loadingManager.onLoad = function() {
     customLoader.style.display = 'none'
     gui.open()
   }, 1000)
-  
 }
+
+// Chessboard
+const square = new THREE.BoxGeometry(4.2, 0.3, 4.2)
+const lightSquare = new THREE.MeshStandardMaterial({ color: 0xFFFFFF })
+const darkSquare = new THREE.MeshStandardMaterial({ color: 0x000000 })
+
+const board = new THREE.Group();
+
+for (let x = 0; x < 8; x++) {
+  for (let z = 0; z < 8; z++) {
+    let cube;
+    if (z % 2 == 0 ) {
+      cube = new THREE.Mesh(square, x % 2 == 0 ? lightSquare : darkSquare)
+    } else {
+      cube = new THREE.Mesh(square, x % 2 == 0 ? darkSquare : lightSquare)
+    }
+
+    cube.position.set(x * 4.2 - 14.7, 0, z * 4.2 - 15)
+    cube.userData.ground = true;
+    draggablePieces.push(cube)
+    board.add(cube)
+  }
+}
+
+scene.add(board)
 
 // load GLTFs
 const loader = new GLTFLoader(loadingManager);
@@ -91,9 +105,10 @@ for (const pieceKey in whitePieces) {
     if(piece.rotation) model.rotation.set(...piece.rotate)
     scene.add(model)
 
-    if (piece.draggable) {
-      const dragControls = new DragControls([model], camera, renderer.domElement)
-    }
+    model.traverse((node) => {
+      node.userData = {drag: true, name: `white${pieceKey}`}
+    })
+    draggablePieces.push(model)
   })
 }
 
@@ -111,31 +126,13 @@ for (const pieceKey in blackPieces) {
     const material = new THREE.MeshPhongMaterial({color: 0x5C5C5C});
     model.traverse((node) => {
       node.material = material
+      node.userData = {drag: true, name: `black${pieceKey}`}
     })
 
     scene.add(model)
-
-    if (piece.draggable) {
-      const dragControls = new DragControls([model], camera, renderer.domElement)
-    }
+    draggablePieces.push(model)
   })
 }
-
-loader.load(
-  "/assets/chess/chessboard.glb",
-  function (gltf) {
-    const model = gltf.scene;
-
-    model.scale.set(3.5, 3.5, 3.5)
-
-    scene.add(model);
-  },
-  undefined,
-  function (error) {
-    console.error(error);
-  }
-);
-
 
 // Lights
 const ambientLight = new THREE.AmbientLight(0x404040);
@@ -145,44 +142,72 @@ const pointLight = new THREE.PointLight(0xFFFFFF, 1, 100);
 pointLight.position.set(0, 20, 0);
 scene.add(pointLight);
 
-// helpers 
-// const cameraHelper = new THREE.CameraHelper(camera);
-// scene.add(cameraHelper)
+// Raycasting
+const mouse = new THREE.Vector2();
+const raycaster = new THREE.Raycaster();
+const moveMouse = new THREE.Vector2();
+let draggable;
 
-// const sphereSize = 0.8;
-// const pointLightHelper = new THREE.PointLightHelper(pointLight, sphereSize);
-// scene.add(pointLightHelper)
+window.addEventListener('click', event => {
+  if (draggable) {
+    console.log('dropping draggable')
+    draggable = null
+    return;
+  }
+
+  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
+
+  raycaster.setFromCamera(mouse, camera);
+  const found = raycaster.intersectObjects(draggablePieces);
+  console.log(found[0].object.userData)
+  if (found.length > 0 && found[0].object.userData.drag) {
+    draggable = found[0].object;
+  }
+});
+
+window.addEventListener('mousemove', event => {
+  moveMouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+  moveMouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
+})
+
+function dragObject() {
+  if (draggable != null) {
+    raycaster.setFromCamera(moveMouse, camera)
+    const found = raycaster.intersectObjects(draggablePieces)
+    if (found.length > 0) {
+      for (let o of found) {
+        if (!o.object.userData.ground)
+          continue
+        draggable.position.x = found[0].point.x
+        draggable.position.z = found[0].point.z
+      }
+    }
+  }
+}
 
 camera.position.set(0, 17, 25)
 camera.rotation.set(5.61, 0, 0)
 
 // Orbitcontrols
-// const controls = new OrbitControls(camera, renderer.domElement);
-// controls.update();
-// controls.enablePan = false;
-// controls.enableRotate = false;
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enablePan = false;
+controls.maxPolarAngle = Math.PI / 2
+controls.enableDamping = true;
 
 // GUI
 const gui = new GUI()
-const cubeFolder = gui.addFolder('cube')
+const cubeFolder = gui.addFolder('Cube')
 cubeFolder.add(cube.rotation, 'x', 0, Math.PI * 2)
 cubeFolder.add(cube.rotation, 'y', 0, Math.PI * 2)
 cubeFolder.add(cube.rotation, 'z', 0, Math.PI * 2)
 cubeFolder.open()
-const cameraFolder = gui.addFolder('camera')
-cameraFolder.add(camera.rotation, 'x', 0, Math.PI * 2, 0.01).name('Rotation X'); 
-cameraFolder.add(camera.rotation, 'y', 0, Math.PI * 2, 0.01).name('Rotation Y'); 
-cameraFolder.add(camera.rotation, 'z', 0, Math.PI * 2, 0.01).name('Rotation Z');
-cameraFolder.add(camera.position, 'x', -50, 50 * 2, 0.01).name('Position X'); 
-cameraFolder.add(camera.position, 'y', -50, 50 * 2, 0.01).name('Position Y'); 
-cameraFolder.add(camera.position, 'z', -50, 50 * 2, 0.01).name('Position Z');
-cameraFolder.open()
-const pointLightFolder = gui.addFolder('pointlight')
+const pointLightFolder = gui.addFolder('Lighting')
 pointLightFolder.add(pointLight, 'intensity', 0, 1)
+pointLightFolder.add(pointLight.position, 'y', 0, 50).name('position')
+pointLightFolder.add(pointLight.position, 'z', -50, 50).name('offset')
+pointLightFolder.open()
 gui.close()
-
-// customising background
-// scene.background.color = 0x000fff
 
 function animate() {
   requestAnimationFrame(animate);
@@ -190,8 +215,9 @@ function animate() {
   cube.rotation.x += 0.01;
   cube.rotation.y += 0.01;
 
-  // controls.update();
+  controls.update();
 
+  dragObject()
   renderer.render(scene, camera);
 }
 
