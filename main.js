@@ -4,6 +4,9 @@ import { DragControls } from 'three/addons/controls/DragControls.js';
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { GUI } from 'dat.gui'
 
+import whitePieces from "./data/WhitePieces";
+import blackPieces from "./data/BlackPieces";
+
 const canvas = document.getElementById('canvas')
 
 const scene = new THREE.Scene();
@@ -58,44 +61,47 @@ loader.load(
   }
 );
 
-loader.load(
-  "/assets/chess/king.glb",
-  function (gltf) {
-    const model = gltf.scene;
+for (const pieceKey in whitePieces) {
+  const piece = whitePieces[pieceKey]
 
-    // Set the desired position of the model
-    model.position.set(8.5, 0, 15);
-    model.scale.set(0.04, 0.04, 0.04)
+  loader.load(`/assets/chess/${piece.name}.glb`,
+  function (glb) {
+    const model = glb.scene;
 
-    scene.add(model);
+    model.position.set(...piece.position)
+    model.scale.set(...piece.scale)
+    if(piece.rotation) model.rotation.set(...piece.rotate)
+    scene.add(model)
 
-    new DragControls([model], camera, renderer.domElement);
-  },
-  undefined,
-  function (error) {
-    console.error(error);
-  }
-);
+    if (piece.draggable) {
+      const dragControls = new DragControls([model], camera, renderer.domElement)
+    }
+  })
+}
 
-loader.load(
-  "/assets/chess/queen.glb",
-  function (gltf) {
-    const model = gltf.scene;
+for (const pieceKey in blackPieces) {
+  const piece = blackPieces[pieceKey]
 
-    // Set the desired position of the model
-    model.position.set(1.5, 0, 15);
-    model.scale.set(0.04, 0.04, 0.04)
+  loader.load(`/assets/chess/${piece.name}.glb`,
+  function (glb) {
+    const model = glb.scene;
 
-    scene.add(model);
+    model.position.set(...piece.position)
+    model.scale.set(...piece.scale)
+    if(piece.rotation) model.rotation.set(...piece.rotate)
+    
+    const material = new THREE.MeshPhongMaterial({color: 0x5C5C5C});
+    model.traverse((node) => {
+      node.material = material
+    })
 
-    // Drag control
-    new DragControls([model], camera, renderer.domElement);
-  },
-  undefined,
-  function (error) {
-    console.error(error);
-  }
-);
+    scene.add(model)
+
+    if (piece.draggable) {
+      const dragControls = new DragControls([model], camera, renderer.domElement)
+    }
+  })
+}
 
 loader.load(
   "/assets/chess/chessboard.glb",
@@ -112,72 +118,13 @@ loader.load(
   }
 );
 
-loader.load("/assets/chess/bishop.glb", function(gltf) {
-  const model = gltf.scene;
-  model.scale.set(0.04, 0.04, 0.04)
-  model.position.set(-5, 0, 15);
-  new DragControls([model], camera, renderer.domElement);
-  scene.add(model)
-})
-
-loader.load("/assets/chess/bishop.glb", function(gltf) {
-  const model = gltf.scene;
-  model.scale.set(0.04, 0.04, 0.04)
-  model.position.set(7, 0, 15);
-  new DragControls([model], camera, renderer.domElement);
-  scene.add(model)
-})
-
-loader.load("/assets/chess/knight.glb", function(gltf) {
-  const model = gltf.scene;
-  model.scale.set(0.04, 0.04, 0.04)
-  model.position.set(-10.3, 0, 16.5);
-  model.rotation.set(0, Math.PI/2, 0)
-  new DragControls([model], camera, renderer.domElement);
-  scene.add(model)
-})
-
-loader.load("/assets/chess/knight.glb", function(gltf) {
-  const model = gltf.scene;
-  model.scale.set(0.04, 0.04, 0.04)
-  model.position.set(9.5, 1.5, 17.5);
-  model.rotation.set(0, Math.PI/2, 0)
-  new DragControls([model], camera, renderer.domElement);
-  scene.add(model)
-})
-
-loader.load("/assets/chess/rook.glb", function(gltf) {
-  const model = gltf.scene;
-  model.scale.set(0.04, 0.04, 0.04)
-  model.position.set(-18.5, 0, 15);
-  new DragControls([model], camera, renderer.domElement);
-  scene.add(model)
-})
-
-loader.load("/assets/chess/rook.glb", function(gltf) {
-  const model = gltf.scene;
-  model.scale.set(0.04, 0.04, 0.04)
-  model.position.set(10, 0, 15);
-  new DragControls([model], camera, renderer.domElement);
-  scene.add(model)
-})
-
-for (let i = 0; i < 8; i ++) {
-  loader.load("/assets/chess/pawn.glb", function(gltf) {
-    const model = gltf.scene;
-    model.scale.set(0.04, 0.04, 0.04)
-    model.position.set((-21 + i*4.1), 0, 11)
-    new DragControls([model], camera, renderer.domElement);
-    scene.add(model)
-  })
-}
 
 // Lights
-const ambientLight = new THREE.AmbientLight(0x202020);
+const ambientLight = new THREE.AmbientLight(0x404040);
 scene.add(ambientLight);
 
 const pointLight = new THREE.PointLight(0xFFFFFF, 1, 100);
-pointLight.position.set(0, 10, 0);
+pointLight.position.set(0, 20, 0);
 scene.add(pointLight);
 
 // helpers 
@@ -205,10 +152,12 @@ cubeFolder.add(cube.rotation, 'y', 0, Math.PI * 2)
 cubeFolder.add(cube.rotation, 'z', 0, Math.PI * 2)
 cubeFolder.open()
 const cameraFolder = gui.addFolder('camera')
-cameraFolder.add(camera.position, 'z', 0, 50).name('Zoom');
 cameraFolder.add(camera.rotation, 'x', 0, Math.PI * 2, 0.01).name('Rotation X'); 
 cameraFolder.add(camera.rotation, 'y', 0, Math.PI * 2, 0.01).name('Rotation Y'); 
 cameraFolder.add(camera.rotation, 'z', 0, Math.PI * 2, 0.01).name('Rotation Z');
+cameraFolder.add(camera.position, 'x', -50, 50 * 2, 0.01).name('Position X'); 
+cameraFolder.add(camera.position, 'y', -50, 50 * 2, 0.01).name('Position Y'); 
+cameraFolder.add(camera.position, 'z', -50, 50 * 2, 0.01).name('Position Z');
 cameraFolder.open()
 const pointLightFolder = gui.addFolder('pointlight')
 pointLightFolder.add(pointLight, 'intensity', 0, 1)
